@@ -11,11 +11,8 @@ from telegram import (
     Update,
 )
 from telegram.ext import (
-    CallbackQueryHandler,
-    CommandHandler,
     ContextTypes,
     ConversationHandler,
-    MessageHandler,
 )
 
 from conversation_states import (
@@ -28,6 +25,8 @@ from conversation_states import (
     TEXT,
     TYPE,
     PREVIEW,
+    EDIT,
+    EDIT_VALUE,
 )
 from database import fetch_ad_by_id, save_ad_to_db
 
@@ -35,7 +34,7 @@ from database import fetch_ad_by_id, save_ad_to_db
 load_dotenv()
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")
 
-# Temporary storage for user data
+# Temporary storage for user data, redis in future
 user_data = {}
 
 logging.basicConfig(
@@ -46,9 +45,18 @@ logger = logging.getLogger(__name__)
 
 # Define the start command handler function
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
-        "Welcome to Dubai Rent Bot! Use /create to start creating data."
+    keyboard = [[KeyboardButton("/create")], [KeyboardButton("/get_ad")]]
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard, one_time_keyboard=True, resize_keyboard=True
     )
+    await update.message.reply_text(
+        "Welcome to Easy rent Bot! Please choose an option:", reply_markup=reply_markup
+    )
+
+
+async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("You can start over with /create.")
+    return ConversationHandler.END
 
 
 # Define the create command handler function
@@ -182,16 +190,39 @@ async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             for i, photo in enumerate(photos)
         ]
 
-        # Send the preview with confirmation button
+        # Send the preview with confirmation and edit buttons
         confirm_button = InlineKeyboardButton("Confirm", callback_data="confirm")
-        keyboard = InlineKeyboardMarkup([[confirm_button]])
+        edit_button = InlineKeyboardButton("Edit", callback_data="edit")
+        keyboard = InlineKeyboardMarkup([[confirm_button, edit_button]])
 
         await context.bot.send_media_group(chat_id=update.message.chat_id, media=media)
         await update.message.reply_text(
-            "Preview your ad above. Click Confirm to post.", reply_markup=keyboard
+            "Preview your ad above. Click Confirm to post or Edit to make changes.",
+            reply_markup=keyboard,
         )
 
         return PREVIEW
+
+
+# Define the edit handler function
+async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    if user_id in user_data:
+        keyboard = [
+            [KeyboardButton("Type"), KeyboardButton("Price")],
+            [KeyboardButton("House Name"), KeyboardButton("District")],
+            [KeyboardButton("Rooms"), KeyboardButton("Area")],
+            [KeyboardButton("Text"), KeyboardButton("Photos")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(
+            keyboard, one_time_keyboard=True, resize_keyboard=True
+        )
+        await query.message.reply_text(
+            "Which field would you like to edit?", reply_markup=reply_markup
+        )
+        return EDIT
 
 
 # Define the confirmation handler function
@@ -238,6 +269,33 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"Your message has been posted. Ad ID: {ad_id}. Use /create to post another ad."
         )
         return ConversationHandler.END
+
+
+# Define a function to handle the field to be edited
+async def edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id = update.message.from_user.id
+    field = update.message.text.lower().replace(" ", "_")
+    if field in user_data[user_id]:
+        user_data[user_id]["edit_field"] = field
+        await update.message.reply_text(f"Please enter the new value for {field}:")
+        return EDIT_VALUE
+    else:
+        await update.message.reply_text("Invalid field. Please choose a valid field.")
+        return EDIT
+
+
+# Define a function to handle the updated field value
+async def update_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id = update.message.from_user.id
+    field = user_data[user_id].get("edit_field")
+    if field:
+        user_data[user_id][field] = update.message.text
+        del user_data[user_id]["edit_field"]
+        await update.message.reply_text(f"{field} updated. Returning to preview...")
+        return await preview(update, context)
+    else:
+        await update.message.reply_text("Error updating field. Please try again.")
+        return EDIT
 
 
 # Define the get_ad command handler function

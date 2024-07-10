@@ -1,7 +1,6 @@
 import os
 
 from dotenv import load_dotenv
-from telegram import Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -9,7 +8,6 @@ from telegram.ext import (
     ConversationHandler,
     MessageHandler,
     filters,
-    ContextTypes,
 )
 
 from conversation_states import (
@@ -22,6 +20,8 @@ from conversation_states import (
     ROOMS,
     TEXT,
     TYPE,
+    EDIT,
+    EDIT_VALUE,
 )
 from database import init_db
 from handlers import (
@@ -37,17 +37,16 @@ from handlers import (
     handle_text,
     handle_type,
     preview,
+    edit,
+    edit_field,
+    update_field,
     start,
+    restart,
 )
 
 # Load environment variables
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-
-async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("You can start over with /create.")
-    return ConversationHandler.END
 
 
 def main() -> None:
@@ -62,24 +61,27 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("create", create)],
         states={
-            ROOMS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_rooms)],
-            PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_price)],
             TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_type)],
-            AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_area)],
+            PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_price)],
             HOUSE_NAME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_house_name)
             ],
             DISTRICT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_district)
             ],
+            ROOMS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_rooms)],
+            AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_area)],
             TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)],
             PHOTOS: [
                 MessageHandler(filters.PHOTO, handle_photo),
                 CommandHandler("preview", preview),
             ],
             PREVIEW: [
-                CallbackQueryHandler(confirm, pattern="confirm")
-            ],  # Handle confirmation
+                CallbackQueryHandler(confirm, pattern="^confirm$"),
+                CallbackQueryHandler(edit, pattern="^edit$"),
+            ],
+            EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_field)],
+            EDIT_VALUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_field)],
         },
         fallbacks=[CommandHandler("restart", restart)],
     )
