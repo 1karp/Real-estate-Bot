@@ -65,3 +65,21 @@ def fetch_ad_by_id(ad_id):
         )  # Convert the comma-separated string back to a list
         return (username, photos, rooms, price, type, area, house_name, district, text)
     return None
+
+
+def fetch_ads_by_username(username):
+    cursor.execute(
+        "SELECT id, photos, rooms, price, type, area, house_name, district, text FROM ads WHERE username = ?",
+        (username,),
+    )
+    rows = cursor.fetchall()
+    ads = []
+    for row in rows:
+        ad_id, photos_str, rooms, price, type, area, house_name, district, text = row
+        photos = photos_str.split(
+            ","
+        )  # Convert the comma-separated string back to a list
+        ads.append(
+            (ad_id, photos, rooms, price, type, area, house_name, district, text)
+        )
+    return ads if ads else None

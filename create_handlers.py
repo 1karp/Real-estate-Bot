@@ -28,7 +28,7 @@ from conversation_states import (
     EDIT,
     EDIT_VALUE,
 )
-from database import fetch_ad_by_id, save_ad_to_db
+from database import save_ad_to_db
 
 # Load environment variables
 load_dotenv()
@@ -296,31 +296,3 @@ async def update_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     else:
         await update.message.reply_text("Error updating field. Please try again.")
         return EDIT
-
-
-# Define the get_ad command handler function
-async def get_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    ad_id = int(context.args[0])
-    ad = fetch_ad_by_id(ad_id)
-    if ad:
-        username, photos, rooms, price, type, area, house_name, district, text = ad
-        ad_text = (
-            f"{text}\n\n"
-            f"Rooms: {rooms}\n"
-            f"Price: {price} AED/year\n"
-            f"Rent type: {type}\n"
-            f"Area: {area} sqm\n"
-            f"House Name: {house_name}\n"
-            f"District: {district}\n\n"
-            f"Contact: @{username}"
-        )
-        if photos:
-            # Create a list of InputMediaPhoto objects
-            media = [
-                InputMediaPhoto(media=photo, caption=(ad_text if i == 0 else ""))
-                for i, photo in enumerate(photos)
-            ]
-            # Send the ad photos as a media group with the text as caption of the first photo
-            await update.message.reply_media_group(media=media)
-    else:
-        await update.message.reply_text("Ad not found.")
