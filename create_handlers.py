@@ -30,7 +30,7 @@ from conversation_states import (
 )
 from database import save_ad_to_db
 
-# Load environment variables
+
 load_dotenv()
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")
 
@@ -87,7 +87,7 @@ async def handle_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def handle_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
     try:
-        price = float(update.message.text)
+        price = int(update.message.text)
         user_data[user_id]["price"] = price
         await update.message.reply_text("What is the name of the house?")
         return HOUSE_NAME
@@ -132,7 +132,7 @@ async def handle_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def handle_area(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
     try:
-        area = float(update.message.text)
+        area = int(update.message.text)
         user_data[user_id]["area"] = area
         await update.message.reply_text("Please send me the text for your ad.")
         return TEXT
@@ -184,13 +184,11 @@ async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         photos = data["photos"]
 
-        # Create a list of InputMediaPhoto objects
         media = [
             InputMediaPhoto(media=photo, caption=(text if i == 0 else ""))
             for i, photo in enumerate(photos)
         ]
 
-        # Send the preview with confirmation and edit buttons
         confirm_button = InlineKeyboardButton("Confirm", callback_data="confirm")
         edit_button = InlineKeyboardButton("Edit", callback_data="edit")
         keyboard = InlineKeyboardMarkup([[confirm_button, edit_button]])
@@ -251,19 +249,15 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         photos = data["photos"]
 
-        # Save the ad to the database
         ad_id = save_ad_to_db(user_id, data)
 
         if photos:
-            # Create a list of InputMediaPhoto objects
             media = [
                 InputMediaPhoto(media=photo, caption=(text if i == 0 else ""))
                 for i, photo in enumerate(photos)
             ]
-            # Send the created photos as a media group with the text as caption of the first photo
             await context.bot.send_media_group(chat_id=CHANNEL_USERNAME, media=media)
 
-        # Clear the user data after posting
         del user_data[user_id]
         await query.message.reply_text(
             f"Your message has been posted. Ad ID: {ad_id}. Use /create to post another ad."

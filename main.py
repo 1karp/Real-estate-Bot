@@ -23,7 +23,6 @@ from conversation_states import (
     EDIT,
     EDIT_VALUE,
 )
-from database import init_db
 from create_handlers import (
     confirm,
     create,
@@ -44,19 +43,13 @@ from create_handlers import (
 )
 from myads_handlers import get_ad, get_my_ads
 
-# Load environment variables
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 
 def main() -> None:
-    # Initialize the database
-    init_db()
 
-    # Create the Application and pass it your bot's token
     application = Application.builder().token(BOT_TOKEN).build()
-
-    # Create a conversation handler with the states
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("create", create)],
@@ -86,21 +79,14 @@ def main() -> None:
         fallbacks=[CommandHandler("restart", restart)],
     )
 
-    # Register the conversation handler
     application.add_handler(conv_handler)
 
-    # Register the start command handler
     application.add_handler(CommandHandler("start", start))
 
-    # Register the get_ad command handler
-    application.add_handler(CommandHandler("get_ad", get_ad))
-
-    # Register the get_ad command handler
     application.add_handler(CommandHandler("get_my_ads", get_my_ads))
 
     application.add_handler(CallbackQueryHandler(get_ad, pattern="^ad_"))
 
-    # Run the bot until you press Ctrl-C or the process receives SIGINT, SIGTERM or SIGABRT
     application.run_polling()
 
 

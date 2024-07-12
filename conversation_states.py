@@ -1,4 +1,3 @@
-# Define conversation states
 (
     TYPE,
     PRICE,

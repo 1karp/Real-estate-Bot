@@ -10,12 +10,10 @@ from telegram.ext import ContextTypes
 
 from database import fetch_ad_by_id, fetch_ads_by_username
 
-# Load environment variables
 load_dotenv()
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")
 
 
-# Define the get_ad command handler function
 async def get_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     ad_id = int(query.data.split("_")[1])
@@ -33,12 +31,10 @@ async def get_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"Contact: @{username}"
         )
         if photos:
-            # Create a list of InputMediaPhoto objects
             media = [
                 InputMediaPhoto(media=photo, caption=(ad_text if i == 0 else ""))
                 for i, photo in enumerate(photos)
             ]
-            # Send the ad photos as a media group with the text as caption of the first photo
             await query.message.reply_media_group(media=media)
     else:
         await query.message.reply_text("Ad not found.")
