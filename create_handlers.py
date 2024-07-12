@@ -1,7 +1,4 @@
-import logging
-import os
-
-from dotenv import load_dotenv
+import json
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -14,7 +11,6 @@ from telegram.ext import (
     ContextTypes,
     ConversationHandler,
 )
-
 from conversation_states import (
     AREA,
     DISTRICT,
@@ -29,18 +25,7 @@ from conversation_states import (
     EDIT_VALUE,
 )
 from database import save_ad_to_db
-
-
-load_dotenv()
-CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")
-
-# Temporary storage for user data, redis in future
-user_data = {}
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+from settings import redis_client, CHANNEL_USERNAME
 
 
 # Define the start command handler function
@@ -63,7 +48,8 @@ async def restart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
     username = update.message.from_user.username
-    user_data[user_id] = {"text": "", "photos": [], "username": username}
+    user_data = {"text": "", "photos": [], "username": username}
+    redis_client.set(user_id, json.dumps(user_data))
     keyboard = [
         [KeyboardButton("Long Term"), KeyboardButton("Short Term")],
         [KeyboardButton("Long Term and Short Term")],
@@ -78,7 +64,9 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # Define a function to handle type
 async def handle_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
-    user_data[user_id]["type"] = update.message.text
+    user_data = json.loads(redis_client.get(user_id))
+    user_data["type"] = update.message.text
+    redis_client.set(user_id, json.dumps(user_data))
     await update.message.reply_text("What is the price? AED/Year")
     return PRICE
 
@@ -86,9 +74,11 @@ async def handle_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 # Define a function to handle price
 async def handle_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
+    user_data = json.loads(redis_client.get(user_id))
     try:
         price = int(update.message.text)
-        user_data[user_id]["price"] = price
+        user_data["price"] = price
+        redis_client.set(user_id, json.dumps(user_data))
         await update.message.reply_text("What is the name of the house?")
         return HOUSE_NAME
     except ValueError:
@@ -99,7 +89,9 @@ async def handle_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 # Define a function to handle house name
 async def handle_house_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
-    user_data[user_id]["house_name"] = update.message.text
+    user_data = json.loads(redis_client.get(user_id))
+    user_data["house_name"] = update.message.text
+    redis_client.set(user_id, json.dumps(user_data))
     await update.message.reply_text("What is the district?")
     return DISTRICT
 
@@ -107,7 +99,9 @@ async def handle_house_name(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 # Define a function to handle district
 async def handle_district(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
-    user_data[user_id]["district"] = update.message.text
+    user_data = json.loads(redis_client.get(user_id))
+    user_data["district"] = update.message.text
+    redis_client.set(user_id, json.dumps(user_data))
     keyboard = [
         [KeyboardButton("Studio"), KeyboardButton("1")],
         [KeyboardButton("2"), KeyboardButton("3")],
@@ -123,7 +117,9 @@ async def handle_district(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # Define a function to handle number of rooms
 async def handle_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
-    user_data[user_id]["rooms"] = update.message.text
+    user_data = json.loads(redis_client.get(user_id))
+    user_data["rooms"] = update.message.text
+    redis_client.set(user_id, json.dumps(user_data))
     await update.message.reply_text("What is the area of the apartment? (sqm)")
     return AREA
 
@@ -131,9 +127,11 @@ async def handle_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 # Define a function to handle area
 async def handle_area(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
+    user_data = json.loads(redis_client.get(user_id))
     try:
         area = int(update.message.text)
-        user_data[user_id]["area"] = area
+        user_data["area"] = area
+        redis_client.set(user_id, json.dumps(user_data))
         await update.message.reply_text("Please send me the text for your ad.")
         return TEXT
     except ValueError:
@@ -144,7 +142,9 @@ async def handle_area(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 # Define a function to handle created text
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
-    user_data[user_id]["text"] = update.message.text
+    user_data = json.loads(redis_client.get(user_id))
+    user_data["text"] = update.message.text
+    redis_client.set(user_id, json.dumps(user_data))
     await update.message.reply_text("Please send me the photos.")
     return PHOTOS
 
@@ -152,8 +152,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 # Define a function to handle created photos
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
+    user_data = json.loads(redis_client.get(user_id))
     photo_file_id = update.message.photo[-1].file_id
-    user_data[user_id]["photos"].append(photo_file_id)
+    user_data["photos"].append(photo_file_id)
+    redis_client.set(user_id, json.dumps(user_data))
     await update.message.reply_text(
         "Photo received. You can send more photos or use /preview to see the ad preview."
     )
@@ -163,26 +165,26 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 # Define the preview command handler function
 async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
-    if user_id in user_data:
-        data = user_data[user_id]
-        district_hash = "_".join(data["district"].split())
-        if int(data["price"]) // 10_000 * 10_000 == int(data["price"]):
-            price_hash = int(data["price"])
+    user_data = json.loads(redis_client.get(user_id))
+    if user_data:
+        district_hash = "_".join(user_data["district"].split())
+        if int(user_data["price"]) // 10_000 * 10_000 == int(user_data["price"]):
+            price_hash = int(user_data["price"])
         else:
-            price_hash = (int(data["price"]) // 10_000 + 1) * 10_000
+            price_hash = (int(user_data["price"]) // 10_000 + 1) * 10_000
 
         text = (
             f"#{district_hash}, #under_{price_hash}\n\n"
-            f"Rooms: {data['rooms']}\n"
-            f"Price: {data['price']} AED/Year\n"
-            f"Type: {data['type']}\n"
-            f"Area: {data['area']} sqm\n"
-            f"House Name: {data['house_name']}\n"
-            f"District: {data['district']}\n\n"
-            f"{data['text']}\n\n"
-            f"Contact: @{data['username']}"
+            f"Rooms: {user_data['rooms']}\n"
+            f"Price: {user_data['price']} AED/Year\n"
+            f"Type: {user_data['type']}\n"
+            f"Area: {user_data['area']} sqm\n"
+            f"House Name: {user_data['house_name']}\n"
+            f"District: {user_data['district']}\n\n"
+            f"{user_data['text']}\n\n"
+            f"Contact: @{user_data['username']}"
         )
-        photos = data["photos"]
+        photos = user_data["photos"]
 
         media = [
             InputMediaPhoto(media=photo, caption=(text if i == 0 else ""))
@@ -207,7 +209,8 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    if user_id in user_data:
+    user_data = json.loads(redis_client.get(user_id))
+    if user_data:
         keyboard = [
             [KeyboardButton("Type"), KeyboardButton("Price")],
             [KeyboardButton("House Name"), KeyboardButton("District")],
@@ -228,28 +231,28 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    if user_id in user_data:
-        data = user_data[user_id]
-        district_hash = "_".join(data["district"].split())
-        if int(data["price"]) // 10_000 * 10_000 == int(data["price"]):
-            price_hash = int(data["price"])
+    user_data = json.loads(redis_client.get(user_id))
+    if user_data:
+        district_hash = "_".join(user_data["district"].split())
+        if int(user_data["price"]) // 10_000 * 10_000 == int(user_data["price"]):
+            price_hash = int(user_data["price"])
         else:
-            price_hash = (int(data["price"]) // 10_000 + 1) * 10_000
+            price_hash = (int(user_data["price"]) // 10_000 + 1) * 10_000
 
         text = (
             f"#{district_hash}, #under_{price_hash}\n\n"
-            f"Rooms: {data['rooms']}\n"
-            f"Price: {data['price']} AED/Year\n"
-            f"Type: {data['type']}\n"
-            f"Area: {data['area']} sqm\n"
-            f"House Name: {data['house_name']}\n"
-            f"District: {data['district']}\n\n"
-            f"{data['text']}\n\n"
-            f"Contact: @{data['username']}"
+            f"Rooms: {user_data['rooms']}\n"
+            f"Price: {user_data['price']} AED/Year\n"
+            f"Type: {user_data['type']}\n"
+            f"Area: {user_data['area']} sqm\n"
+            f"House Name: {user_data['house_name']}\n"
+            f"District: {user_data['district']}\n\n"
+            f"{user_data['text']}\n\n"
+            f"Contact: @{user_data['username']}"
         )
-        photos = data["photos"]
+        photos = user_data["photos"]
 
-        ad_id = save_ad_to_db(user_id, data)
+        ad_id = save_ad_to_db(user_id, user_data)
 
         if photos:
             media = [
@@ -258,7 +261,7 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             ]
             await context.bot.send_media_group(chat_id=CHANNEL_USERNAME, media=media)
 
-        del user_data[user_id]
+        redis_client.delete(user_id)
         await query.message.reply_text(
             f"Your message has been posted. Ad ID: {ad_id}. Use /create to post another ad."
         )
@@ -268,9 +271,11 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # Define a function to handle the field to be edited
 async def edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
+    user_data = json.loads(redis_client.get(user_id))
     field = update.message.text.lower().replace(" ", "_")
-    if field in user_data[user_id]:
-        user_data[user_id]["edit_field"] = field
+    if field in user_data:
+        user_data["edit_field"] = field
+        redis_client.set(user_id, json.dumps(user_data))
         await update.message.reply_text(f"Please enter the new value for {field}:")
         return EDIT_VALUE
     else:
@@ -281,10 +286,12 @@ async def edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # Define a function to handle the updated field value
 async def update_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
-    field = user_data[user_id].get("edit_field")
+    user_data = json.loads(redis_client.get(user_id))
+    field = user_data.get("edit_field")
     if field:
-        user_data[user_id][field] = update.message.text
-        del user_data[user_id]["edit_field"]
+        user_data[field] = update.message.text
+        del user_data["edit_field"]
+        redis_client.set(user_id, json.dumps(user_data))
         await update.message.reply_text(f"{field} updated. Returning to preview...")
         return await preview(update, context)
     else:

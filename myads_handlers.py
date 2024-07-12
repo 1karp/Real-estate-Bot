@@ -1,5 +1,4 @@
-import os
-from dotenv import load_dotenv
+import json
 from telegram import (
     InputMediaPhoto,
     InlineKeyboardButton,
@@ -8,18 +7,34 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 
+from settings import redis_client
 from database import fetch_ad_by_id, fetch_ads_by_username
-
-load_dotenv()
-CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")
 
 
 async def get_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    user_id = update.effective_user.id
     ad_id = int(query.data.split("_")[1])
     ad = fetch_ad_by_id(ad_id)
+
     if ad:
         username, photos, rooms, price, type, area, house_name, district, text = ad
+        user_data = {
+            "ad_id": ad_id,
+            "user_id": user_id,
+            "username": username,
+            "photos": photos,
+            "rooms": rooms,
+            "price": price,
+            "type": type,
+            "area": area,
+            "house_name": house_name,
+            "district": district,
+            "text": text,
+        }
+
+        redis_client.set(user_id, json.dumps(user_data))
+
         ad_text = (
             f"{text}\n\n"
             f"Rooms: {rooms}\n"
@@ -35,7 +50,16 @@ async def get_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 InputMediaPhoto(media=photo, caption=(ad_text if i == 0 else ""))
                 for i, photo in enumerate(photos)
             ]
-            await query.message.reply_media_group(media=media)
+            await context.bot.send_media_group(
+                chat_id=query.message.chat_id, media=media
+            )
+
+        button = InlineKeyboardButton("Edit", callback_data=f"edit_ad_{user_id}")
+        keyboard = InlineKeyboardMarkup([[button]])
+        await query.message.reply_text(
+            "Preview your ad above. Click Edit to make changes.",
+            reply_markup=keyboard,
+        )
     else:
         await query.message.reply_text("Ad not found.")
 
