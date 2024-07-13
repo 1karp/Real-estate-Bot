@@ -1,6 +1,3 @@
-import os
-
-from dotenv import load_dotenv
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -15,16 +12,20 @@ from conversation_states import (
     DISTRICT,
     HOUSE_NAME,
     PHOTOS,
-    PREVIEW,
     PRICE,
     ROOMS,
     TEXT,
     TYPE,
-    EDIT,
-    EDIT_VALUE,
+    CHOOSING,
+    TYPING_REPLY,
+)
+from edit_handlers import (
+    edit_ad_start,
+    edit_field,
+    finish_editing,
+    save_edit,
 )
 from create_handlers import (
-    confirm,
     create,
     handle_area,
     handle_district,
@@ -34,24 +35,18 @@ from create_handlers import (
     handle_rooms,
     handle_text,
     handle_type,
-    preview,
-    edit,
-    edit_field,
-    update_field,
-    start,
-    restart,
+    save_ad,
 )
-from myads_handlers import get_ad, get_my_ads
-
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+from main_handlers import cancel, start
+from myads_handlers import get_my_ads, view_ad, view_ad_callback
+from settings import BOT_TOKEN
 
 
 def main() -> None:
 
     application = Application.builder().token(BOT_TOKEN).build()
 
-    conv_handler = ConversationHandler(
+    create_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("create", create)],
         states={
             TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_type)],
@@ -67,25 +62,35 @@ def main() -> None:
             TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)],
             PHOTOS: [
                 MessageHandler(filters.PHOTO, handle_photo),
-                CommandHandler("preview", preview),
+                CommandHandler("save_ad", save_ad),
             ],
-            PREVIEW: [
-                CallbackQueryHandler(confirm, pattern="^confirm$"),
-                CallbackQueryHandler(edit, pattern="^edit$"),
-            ],
-            EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_field)],
-            EDIT_VALUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_field)],
         },
-        fallbacks=[CommandHandler("restart", restart)],
+        fallbacks=[CommandHandler("cancel", cancel)],
     )
 
-    application.add_handler(conv_handler)
+    edit_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(edit_ad_start, pattern=r"^edit_ad_")],
+        states={
+            CHOOSING: [
+                CallbackQueryHandler(edit_field, pattern=r"^edit_"),
+                CallbackQueryHandler(finish_editing, pattern=r"^done$"),
+            ],
+            TYPING_REPLY: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_edit)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    application.add_handler(create_conv_handler)
+
+    application.add_handler(edit_conv_handler)
 
     application.add_handler(CommandHandler("start", start))
 
     application.add_handler(CommandHandler("get_my_ads", get_my_ads))
 
-    application.add_handler(CallbackQueryHandler(get_ad, pattern="^ad_"))
+    application.add_handler(CommandHandler("view_ad", view_ad))
+
+    application.add_handler(CallbackQueryHandler(view_ad_callback, pattern="^view_ad_"))
 
     application.run_polling()
 

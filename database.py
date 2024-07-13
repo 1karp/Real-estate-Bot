@@ -1,4 +1,7 @@
 import requests
+import json
+
+from settings import redis_client
 
 
 URL = "http://localhost:8000/ads"
@@ -29,24 +32,24 @@ def save_ad_to_db(user_id, data):
         response.raise_for_status()
 
 
-def fetch_ad_by_id(ad_id):
+def load_ad_by_id(ad_id, user_id):
     url = URL + f"/{ad_id}"
     response = requests.get(url)
 
     if response.status_code == 200:
         ad_data = response.json()
-        photos = ad_data["photos"].split(",")
-        return (
-            ad_data["username"],
-            photos,
-            ad_data["rooms"],
-            ad_data["price"],
-            ad_data["type"],
-            ad_data["area"],
-            ad_data["house_name"],
-            ad_data["district"],
-            ad_data["text"],
-        )
+        redis_client.set(user_id, json.dumps(ad_data))
+    else:
+        response.raise_for_status()
+
+
+def update_ad(user_id):
+    ad_data = json.loads(redis_client.get(user_id))
+    url = URL + f"/{ad_data['id']}"
+
+    response = requests.put(url, json=ad_data)
+    if response.status_code == 200:
+        return True
     else:
         response.raise_for_status()
 

@@ -8,60 +8,48 @@ from telegram import (
 from telegram.ext import ContextTypes
 
 from settings import redis_client
-from database import fetch_ad_by_id, fetch_ads_by_username
+from database import fetch_ads_by_username, load_ad_by_id
 
 
-async def get_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
+async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
-    ad_id = int(query.data.split("_")[1])
-    ad = fetch_ad_by_id(ad_id)
+    ad = json.loads(redis_client.get(user_id))
 
     if ad:
-        username, photos, rooms, price, type, area, house_name, district, text = ad
-        user_data = {
-            "ad_id": ad_id,
-            "user_id": user_id,
-            "username": username,
-            "photos": photos,
-            "rooms": rooms,
-            "price": price,
-            "type": type,
-            "area": area,
-            "house_name": house_name,
-            "district": district,
-            "text": text,
-        }
-
-        redis_client.set(user_id, json.dumps(user_data))
-
+        photos = ad.get("photos").split(",")
         ad_text = (
-            f"{text}\n\n"
-            f"Rooms: {rooms}\n"
-            f"Price: {price} AED/year\n"
-            f"Rent type: {type}\n"
-            f"Area: {area} sqm\n"
-            f"House Name: {house_name}\n"
-            f"District: {district}\n\n"
-            f"Contact: @{username}"
+            f"{ad.get('text')}\n\n"
+            f"Rooms: {ad.get('rooms')}\n"
+            f"Price: {ad.get('price')} AED/year\n"
+            f"Rent type: {ad.get('type')}\n"
+            f"Area: {ad.get('area')} sqm\n"
+            f"House Name: {ad.get('house_name')}\n"
+            f"District: {ad.get('district')}\n\n"
+            f"Contact: @{ad.get('username')}"
         )
+
         if photos:
             media = [
                 InputMediaPhoto(media=photo, caption=(ad_text if i == 0 else ""))
                 for i, photo in enumerate(photos)
             ]
             await context.bot.send_media_group(
-                chat_id=query.message.chat_id, media=media
+                chat_id=update.effective_chat.id, media=media
             )
 
         button = InlineKeyboardButton("Edit", callback_data=f"edit_ad_{user_id}")
         keyboard = InlineKeyboardMarkup([[button]])
-        await query.message.reply_text(
-            "Preview your ad above. Click Edit to make changes.",
+
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Preview your ad above. Click Edit to make changes.",
             reply_markup=keyboard,
         )
     else:
-        await query.message.reply_text("Ad not found.")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="No ad found. To create a new ad, use /create.",
+        )
 
 
 async def get_my_ads(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -69,7 +57,7 @@ async def get_my_ads(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     ads = fetch_ads_by_username(username)
     if ads:
         buttons = [
-            [InlineKeyboardButton(f"Ad ID: {ad[0]}", callback_data=f"ad_{ad[0]}")]
+            [InlineKeyboardButton(f"Ad ID: {ad[0]}", callback_data=f"view_ad_{ad[0]}")]
             for ad in ads
         ]
         reply_markup = InlineKeyboardMarkup(buttons)
@@ -78,4 +66,18 @@ async def get_my_ads(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             reply_markup=reply_markup,
         )
     else:
-        await update.message.reply_text("No ads found for you.")
+        await update.message.reply_text(
+            "No ads found for you. To create a new ad, use /create."
+        )
+
+
+async def view_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    if data.startswith("view_ad_"):
+        ad_id = data.split("_")[2]
+        user_id = update.effective_user.id
+        load_ad_by_id(ad_id, user_id)
+        await view_ad(update, context)
