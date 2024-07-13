@@ -5,9 +5,9 @@ from telegram import (
     InlineKeyboardMarkup,
     Update,
 )
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, ConversationHandler
 
-from settings import redis_client
+from settings import redis_client, CHANNEL_USERNAME
 from database import fetch_ads_by_username, load_ad_by_id
 
 
@@ -23,7 +23,7 @@ async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"Price: {ad.get('price')} AED/year\n"
             f"Rent type: {ad.get('type')}\n"
             f"Area: {ad.get('area')} sqm\n"
-            f"House Name: {ad.get('house_name')}\n"
+            f"Building: {ad.get('building')}\n"
             f"District: {ad.get('district')}\n\n"
             f"Contact: @{ad.get('username')}"
         )
@@ -36,9 +36,11 @@ async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_media_group(
                 chat_id=update.effective_chat.id, media=media
             )
-
-        button = InlineKeyboardButton("Edit", callback_data=f"edit_ad_{user_id}")
-        keyboard = InlineKeyboardMarkup([[button]])
+        buttons = [
+            InlineKeyboardButton("Edit", callback_data=f"edit_ad_{user_id}"),
+            InlineKeyboardButton("Post", callback_data=f"post_ad_{user_id}"),
+        ]
+        keyboard = InlineKeyboardMarkup([buttons])
 
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -81,3 +83,44 @@ async def view_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         user_id = update.effective_user.id
         load_ad_by_id(ad_id, user_id)
         await view_ad(update, context)
+
+
+async def post_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    user_data = json.loads(redis_client.get(user_id))
+    if user_data:
+        district_hash = "_".join(user_data["district"].split())
+        if int(user_data["price"]) // 10_000 * 10_000 == int(user_data["price"]):
+            price_hash = int(user_data["price"])
+        else:
+            price_hash = (int(user_data["price"]) // 10_000 + 1) * 10_000
+
+        text = (
+            f"#{district_hash}, #under_{price_hash}\n\n"
+            f"Rooms: {user_data['rooms']}\n"
+            f"Price: {user_data['price']} AED/Year\n"
+            f"Type: {user_data['type']}\n"
+            f"Area: {user_data['area']} sqm\n"
+            f"Building: {user_data['building']}\n"
+            f"District: {user_data['district']}\n\n"
+            f"{user_data['text']}\n\n"
+            f"Contact: @{user_data['username']}"
+        )
+        photos = user_data["photos"].split(",")
+
+        if photos:
+            media = [
+                InputMediaPhoto(media=photo, caption=(text if i == 0 else ""))
+                for i, photo in enumerate(photos)
+            ]
+            await context.bot.send_media_group(chat_id=CHANNEL_USERNAME, media=media)
+
+        await query.message.reply_text(
+            f"Your message has been posted. Ad ID: {user_data['id']}. Use /create to post another ad."
+        )
+    if user_data is None:
+        await update.message.reply_text("No ad data found.")
+        return ConversationHandler.END

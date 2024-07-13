@@ -10,7 +10,7 @@ from telegram.ext import (
 from conversation_states import (
     AREA,
     DISTRICT,
-    HOUSE_NAME,
+    BUILDING,
     PHOTOS,
     PRICE,
     ROOMS,
@@ -29,7 +29,7 @@ from create_handlers import (
     create,
     handle_area,
     handle_district,
-    handle_house_name,
+    handle_building,
     handle_photo,
     handle_price,
     handle_rooms,
@@ -38,7 +38,7 @@ from create_handlers import (
     save_ad,
 )
 from main_handlers import cancel, start
-from myads_handlers import get_my_ads, view_ad, view_ad_callback
+from myads_handlers import get_my_ads, view_ad, view_ad_callback, post_ad_callback
 from settings import BOT_TOKEN
 
 
@@ -51,8 +51,8 @@ def main() -> None:
         states={
             TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_type)],
             PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_price)],
-            HOUSE_NAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_house_name)
+            BUILDING: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_building)
             ],
             DISTRICT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_district)
@@ -91,6 +91,7 @@ def main() -> None:
     application.add_handler(CommandHandler("view_ad", view_ad))
 
     application.add_handler(CallbackQueryHandler(view_ad_callback, pattern="^view_ad_"))
+    application.add_handler(CallbackQueryHandler(post_ad_callback, pattern="^post_ad_"))
 
     application.run_polling()
 

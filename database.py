@@ -19,7 +19,7 @@ def save_ad_to_db(user_id, data):
         "price": data["price"],
         "type": data["type"],
         "area": data["area"],
-        "house_name": data["house_name"],
+        "building": data["building"],
         "district": data["district"],
         "text": data["text"],
     }
@@ -71,7 +71,7 @@ def fetch_ads_by_username(username):
                     ad["price"],
                     ad["type"],
                     ad["area"],
-                    ad["house_name"],
+                    ad["building"],
                     ad["district"],
                     ad["text"],
                 )

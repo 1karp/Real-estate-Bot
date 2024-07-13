@@ -13,7 +13,7 @@ from settings import redis_client
 from conversation_states import (
     AREA,
     DISTRICT,
-    HOUSE_NAME,
+    BUILDING,
     PHOTOS,
     PRICE,
     ROOMS,
@@ -56,17 +56,17 @@ async def handle_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         price = int(update.message.text)
         user_data["price"] = price
         redis_client.set(user_id, json.dumps(user_data))
-        await update.message.reply_text("What is the name of the house?")
-        return HOUSE_NAME
+        await update.message.reply_text("What is the name of the building?")
+        return BUILDING
     except ValueError:
         await update.message.reply_text("Invalid price. Please enter a numeric value.")
         return PRICE
 
 
-async def handle_house_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def handle_building(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
     user_data = json.loads(redis_client.get(user_id))
-    user_data["house_name"] = update.message.text
+    user_data["building"] = update.message.text
     redis_client.set(user_id, json.dumps(user_data))
     await update.message.reply_text("What is the district?")
     return DISTRICT

@@ -1,7 +1,7 @@
 (
     TYPE,
     PRICE,
-    HOUSE_NAME,
+    BUILDING,
     DISTRICT,
     ROOMS,
     AREA,
@@ -11,4 +11,4 @@
 
 CHOOSING, TYPING_REPLY = range(2)
 
-EDIT_FIELDS = ["text", "rooms", "price", "type", "area", "house_name", "district"]
+EDIT_FIELDS = ["text", "rooms", "price", "type", "area", "building", "district"]
