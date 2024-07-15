@@ -54,8 +54,8 @@ def update_ad(user_id):
         response.raise_for_status()
 
 
-def fetch_ads_by_username(username):
-    url = URL + f"?username={username}"
+def fetch_ads_by_userid(userid):
+    url = URL + f"?userid={userid}"
     response = requests.get(url)
 
     if response.status_code == 200:

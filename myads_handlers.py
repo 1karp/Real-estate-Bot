@@ -8,7 +8,7 @@ from telegram import (
 from telegram.ext import ContextTypes, ConversationHandler
 
 from settings import redis_client, CHANNEL_USERNAME
-from database import fetch_ads_by_username, load_ad_by_id, update_ad
+from database import fetch_ads_by_userid, load_ad_by_id, update_ad
 
 
 async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -61,8 +61,8 @@ async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def get_my_ads(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    username = update.effective_user.username
-    ads = fetch_ads_by_username(username)
+    user_id = update.effective_user.id
+    ads = fetch_ads_by_userid(user_id)
     if ads:
         buttons = [
             [InlineKeyboardButton(f"Ad ID: {ad[0]}", callback_data=f"view_ad_{ad[0]}")]
@@ -103,42 +103,56 @@ async def post_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return ConversationHandler.END
 
     if user_data:
-        user_data["is_posted"] = 1
-        redis_client.set(user_id, json.dumps(user_data))
-        update_ad(user_id)
-        district_hash = "_".join(user_data["district"].split())
-        if int(user_data["price"]) // 10_000 * 10_000 == int(user_data["price"]):
-            price_hash = int(user_data["price"])
-        else:
-            price_hash = (int(user_data["price"]) // 10_000 + 1) * 10_000
-
-        text = (
-            f"#{district_hash}, #under_{price_hash}\n\n"
-            f"Rooms: {user_data['rooms']}\n"
-            f"Price: {user_data['price']} AED/Year\n"
-            f"Type: {user_data['type']}\n"
-            f"Area: {user_data['area']} sqm\n"
-            f"Building: {user_data['building']}\n"
-            f"District: {user_data['district']}\n\n"
-            f"{user_data['text']}\n\n"
-            f"Contact: @{user_data['username']}"
-        )
-        photos = user_data["photos"].split(",")
-
-        if photos:
-            media = [
-                InputMediaPhoto(media=photo, caption=(text if i == 0 else ""))
-                for i, photo in enumerate(photos)
-            ]
-            messages = await context.bot.send_media_group(
-                chat_id=CHANNEL_USERNAME, media=media
-            )
-            user_data["chat_message_id"] = messages[0].message_id
-            load_ad_by_id(user_data.get("ad_id"), user_id)
-
-        await query.message.reply_text(
-            f"Your message has been posted. Ad ID: {user_data['id']}. Use /create to post another ad."
-        )
-    if user_data is None:
+        await post_ad(user_id, user_data, query, context)
+    else:
         await update.message.reply_text("No ad data found.")
         return ConversationHandler.END
+
+
+async def post_ad(user_id, user_data, query, context):
+    user_data["is_posted"] = 1
+    redis_client.set(user_id, json.dumps(user_data))
+    update_ad(user_id)
+    district_hash = "_".join(user_data["district"].split())
+    price_hash = calculate_price_hash(user_data["price"])
+
+    text = generate_ad_text(user_data, district_hash, price_hash)
+    photos = user_data["photos"].split(",")
+
+    if photos:
+        await post_photos_with_text(context, photos, text, user_data, user_id)
+
+    await query.message.reply_text(
+        f"Your message has been posted. Ad ID: {user_data['id']}. Use /create to post another ad."
+    )
+
+
+def calculate_price_hash(price):
+    if int(price) // 10_000 * 10_000 == int(price):
+        return int(price)
+    else:
+        return (int(price) // 10_000 + 1) * 10_000
+
+
+def generate_ad_text(user_data, district_hash, price_hash):
+    return (
+        f"#{district_hash}, #under_{price_hash}\n\n"
+        f"Rooms: {user_data['rooms']}\n"
+        f"Price: {user_data['price']} AED/Year\n"
+        f"Type: {user_data['type']}\n"
+        f"Area: {user_data['area']} sqm\n"
+        f"Building: {user_data['building']}\n"
+        f"District: {user_data['district']}\n\n"
+        f"{user_data['text']}\n\n"
+        f"Contact: @{user_data['username']}"
+    )
+
+
+async def post_photos_with_text(context, photos, text, user_data, user_id):
+    media = [
+        InputMediaPhoto(media=photo, caption=(text if i == 0 else ""))
+        for i, photo in enumerate(photos)
+    ]
+    messages = await context.bot.send_media_group(chat_id=CHANNEL_USERNAME, media=media)
+    user_data["chat_message_id"] = messages[0].message_id
+    load_ad_by_id(user_data.get("id"), user_id)
