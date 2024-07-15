@@ -24,6 +24,7 @@ from edit_handlers import (
     edit_field,
     finish_editing,
     save_edit,
+    edit_ad_in_channel,
 )
 from create_handlers import (
     create,
@@ -92,6 +93,7 @@ def main() -> None:
 
     application.add_handler(CallbackQueryHandler(view_ad_callback, pattern="^view_ad_"))
     application.add_handler(CallbackQueryHandler(post_ad_callback, pattern="^post_ad_"))
+    CallbackQueryHandler(edit_ad_in_channel, pattern=r"^update_channel_post$"),
 
     application.run_polling()
 

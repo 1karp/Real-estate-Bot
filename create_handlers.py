@@ -27,7 +27,7 @@ from myads_handlers import view_ad
 async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
     username = update.message.from_user.username
-    user_data = {"text": "", "photos": [], "username": username}
+    user_data = {"text": "", "photos": [], "username": username, "is_posted": 0}
     redis_client.set(user_id, json.dumps(user_data))
     keyboard = [
         [KeyboardButton("Long Term"), KeyboardButton("Short Term")],

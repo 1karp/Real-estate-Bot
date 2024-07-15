@@ -8,7 +8,7 @@ from telegram import (
 from telegram.ext import ContextTypes, ConversationHandler
 
 from settings import redis_client, CHANNEL_USERNAME
-from database import fetch_ads_by_username, load_ad_by_id
+from database import fetch_ads_by_username, load_ad_by_id, update_ad
 
 
 async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -38,8 +38,14 @@ async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
         buttons = [
             InlineKeyboardButton("Edit", callback_data=f"edit_ad_{user_id}"),
-            InlineKeyboardButton("Post", callback_data=f"post_ad_{user_id}"),
+            InlineKeyboardButton(
+                "Update Channel Post", callback_data="update_channel_post"
+            ),
         ]
+        if not ad.get("is_posted"):
+            buttons.append(
+                InlineKeyboardButton("Post", callback_data=f"post_ad_{user_id}")
+            )
         keyboard = InlineKeyboardMarkup([buttons])
 
         await context.bot.send_message(
@@ -91,7 +97,15 @@ async def post_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     user_id = query.from_user.id
     user_data = json.loads(redis_client.get(user_id))
+
+    if user_data["is_posted"]:
+        await query.message.reply_text("This ad has already been posted.")
+        return ConversationHandler.END
+
     if user_data:
+        user_data["is_posted"] = 1
+        redis_client.set(user_id, json.dumps(user_data))
+        update_ad(user_id)
         district_hash = "_".join(user_data["district"].split())
         if int(user_data["price"]) // 10_000 * 10_000 == int(user_data["price"]):
             price_hash = int(user_data["price"])
@@ -116,7 +130,11 @@ async def post_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 InputMediaPhoto(media=photo, caption=(text if i == 0 else ""))
                 for i, photo in enumerate(photos)
             ]
-            await context.bot.send_media_group(chat_id=CHANNEL_USERNAME, media=media)
+            messages = await context.bot.send_media_group(
+                chat_id=CHANNEL_USERNAME, media=media
+            )
+            user_data["chat_message_id"] = messages[0].message_id
+            load_ad_by_id(user_data.get("ad_id"), user_id)
 
         await query.message.reply_text(
             f"Your message has been posted. Ad ID: {user_data['id']}. Use /create to post another ad."

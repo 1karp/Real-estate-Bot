@@ -1,9 +1,9 @@
 import json
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes, ConversationHandler
 
-from settings import redis_client
+from settings import redis_client, CHANNEL_USERNAME
 from database import update_ad
 from myads_handlers import view_ad
 from conversation_states import CHOOSING, TYPING_REPLY, EDIT_FIELDS
@@ -78,3 +78,74 @@ async def finish_editing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Editing cancelled.")
     return ConversationHandler.END
+
+
+async def edit_ad_in_channel(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    user_data = json.loads(redis_client.get(user_id))
+
+    if not user_data:
+        await query.message.reply_text("No ad data found.")
+        return
+
+    district_hash = "_".join(user_data["district"].split())
+    if int(user_data["price"]) // 10_000 * 10_000 == int(user_data["price"]):
+        price_hash = int(user_data["price"])
+    else:
+        price_hash = (int(user_data["price"]) // 10_000 + 1) * 10_000
+
+    new_text = (
+        f"#{district_hash}, #under_{price_hash}\n\n"
+        f"Rooms: {user_data['rooms']}\n"
+        f"Price: {user_data['price']} AED/Year\n"
+        f"Type: {user_data['type']}\n"
+        f"Area: {user_data['area']} sqm\n"
+        f"Building: {user_data['building']}\n"
+        f"District: {user_data['district']}\n\n"
+        f"{user_data['text']}\n\n"
+        f"Contact: @{user_data['username']}"
+    )
+
+    photos = user_data["photos"].split(",")
+
+    if photos:
+        new_media = InputMediaPhoto(media=photos[0], caption=new_text)
+        try:
+            await context.bot.edit_message_media(
+                chat_id=CHANNEL_USERNAME,
+                message_id=user_data["channel_message_id"],
+                media=new_media,
+            )
+        except Exception as e:
+            await query.message.reply_text(f"Failed to edit the message: {str(e)}")
+            return
+
+        for i, photo in enumerate(photos[1:], start=1):
+            new_media = InputMediaPhoto(media=photo)
+            try:
+                await context.bot.edit_message_media(
+                    chat_id=CHANNEL_USERNAME,
+                    message_id=user_data["channel_message_id"] + i,
+                    media=new_media,
+                )
+            except Exception as e:
+                await query.message.reply_text(f"Failed to edit photo {i+1}: {str(e)}")
+    else:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=CHANNEL_USERNAME,
+                message_id=user_data["channel_message_id"],
+                text=new_text,
+            )
+        except Exception as e:
+            await query.message.reply_text(f"Failed to edit the message: {str(e)}")
+            return
+
+    await query.message.reply_text(
+        "Your ad has been successfully updated in the channel."
+    )
