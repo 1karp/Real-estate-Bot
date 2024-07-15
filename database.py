@@ -79,3 +79,14 @@ def fetch_ads_by_userid(userid):
         return ads if ads else None
     else:
         response.raise_for_status()
+
+
+def post_ad(ad_id):
+    url = URL + f"/{ad_id}/post"
+    response = requests.post(url)
+
+    if response.status_code == 200:
+        return True
+    else:
+        return False
+        response.raise_for_status()

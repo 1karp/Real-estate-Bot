@@ -7,8 +7,8 @@ from telegram import (
 )
 from telegram.ext import ContextTypes, ConversationHandler
 
-from settings import redis_client, CHANNEL_USERNAME
-from database import fetch_ads_by_userid, load_ad_by_id, update_ad
+from settings import redis_client
+from database import fetch_ads_by_userid, load_ad_by_id, post_ad
 
 
 async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -44,7 +44,7 @@ async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         ]
         if not ad.get("is_posted"):
             buttons.append(
-                InlineKeyboardButton("Post", callback_data=f"post_ad_{user_id}")
+                InlineKeyboardButton("Post", callback_data=f"post_ad_{ad.get('id')}")
             )
         keyboard = InlineKeyboardMarkup([buttons])
 
@@ -97,62 +97,19 @@ async def post_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     user_id = query.from_user.id
     user_data = json.loads(redis_client.get(user_id))
+    ad_id = query.data.split("_")[2]
 
     if user_data["is_posted"]:
         await query.message.reply_text("This ad has already been posted.")
         return ConversationHandler.END
 
-    if user_data:
-        await post_ad(user_id, user_data, query, context)
-    else:
-        await update.message.reply_text("No ad data found.")
+    if post_ad(ad_id):
+        user_data["is_posted"] = True
+        redis_client.set(user_id, json.dumps(user_data))
+        await query.message.reply_text(
+            "Ad posted successfully. Use /create to post a new ad."
+        )
         return ConversationHandler.END
-
-
-async def post_ad(user_id, user_data, query, context):
-    user_data["is_posted"] = 1
-    redis_client.set(user_id, json.dumps(user_data))
-    update_ad(user_id)
-    district_hash = "_".join(user_data["district"].split())
-    price_hash = calculate_price_hash(user_data["price"])
-
-    text = generate_ad_text(user_data, district_hash, price_hash)
-    photos = user_data["photos"].split(",")
-
-    if photos:
-        await post_photos_with_text(context, photos, text, user_data, user_id)
-
-    await query.message.reply_text(
-        f"Your message has been posted. Ad ID: {user_data['id']}. Use /create to post another ad."
-    )
-
-
-def calculate_price_hash(price):
-    if int(price) // 10_000 * 10_000 == int(price):
-        return int(price)
     else:
-        return (int(price) // 10_000 + 1) * 10_000
-
-
-def generate_ad_text(user_data, district_hash, price_hash):
-    return (
-        f"#{district_hash}, #under_{price_hash}\n\n"
-        f"Rooms: {user_data['rooms']}\n"
-        f"Price: {user_data['price']} AED/Year\n"
-        f"Type: {user_data['type']}\n"
-        f"Area: {user_data['area']} sqm\n"
-        f"Building: {user_data['building']}\n"
-        f"District: {user_data['district']}\n\n"
-        f"{user_data['text']}\n\n"
-        f"Contact: @{user_data['username']}"
-    )
-
-
-async def post_photos_with_text(context, photos, text, user_data, user_id):
-    media = [
-        InputMediaPhoto(media=photo, caption=(text if i == 0 else ""))
-        for i, photo in enumerate(photos)
-    ]
-    messages = await context.bot.send_media_group(chat_id=CHANNEL_USERNAME, media=media)
-    user_data["chat_message_id"] = messages[0].message_id
-    load_ad_by_id(user_data.get("id"), user_id)
+        await query.message.reply_text("Ad is already posted.")
+        return ConversationHandler.END
