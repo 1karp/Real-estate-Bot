@@ -38,7 +38,7 @@ from create_handlers import (
     save_ad,
 )
 from main_handlers import cancel, start
-from myads_handlers import get_my_ads, view_ad, view_ad_callback, post_ad_callback
+from myads_handlers import get_my_ads, view_ad_callback, post_ad_callback
 from settings import BOT_TOKEN
 
 
@@ -87,8 +87,6 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
 
     application.add_handler(CommandHandler("get_my_ads", get_my_ads))
-
-    application.add_handler(CommandHandler("view_ad", view_ad))
 
     application.add_handler(CallbackQueryHandler(view_ad_callback, pattern="^view_ad_"))
     application.add_handler(CallbackQueryHandler(post_ad_callback, pattern="^post_ad_"))

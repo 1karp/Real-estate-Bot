@@ -4,11 +4,18 @@ import json
 from settings import redis_client
 
 
-URL = "http://localhost:8000/ads"
+URL_ADS = "http://localhost:8000/ads"
+URL_USERS = "http://localhost:8000/users"
+
+
+def save_user_to_db(user_id, username):
+    url = URL_USERS
+    data = {"userid": user_id, "username": username, "ads": ""}
+    requests.post(url, json=data)
 
 
 def save_ad_to_db(user_id, data):
-    url = URL
+    url = URL_ADS
     photos_str = ",".join(data["photos"])
 
     ad_data = {
@@ -33,7 +40,7 @@ def save_ad_to_db(user_id, data):
 
 
 def load_ad_by_id(ad_id, user_id):
-    url = URL + f"/{ad_id}"
+    url = URL_ADS + f"/{ad_id}"
     response = requests.get(url)
 
     if response.status_code == 200:
@@ -45,7 +52,7 @@ def load_ad_by_id(ad_id, user_id):
 
 def update_ad(user_id):
     ad_data = json.loads(redis_client.get(user_id))
-    url = URL + f"/{ad_data['id']}"
+    url = URL_ADS + f"/{ad_data['id']}"
 
     response = requests.put(url, json=ad_data)
     if response.status_code == 200:
@@ -55,7 +62,7 @@ def update_ad(user_id):
 
 
 def fetch_ads_by_userid(userid):
-    url = URL + f"?userid={userid}"
+    url = URL_ADS + f"?userid={userid}"
     response = requests.get(url)
 
     if response.status_code == 200:
@@ -82,7 +89,7 @@ def fetch_ads_by_userid(userid):
 
 
 def post_ad(ad_id):
-    url = URL + f"/{ad_id}/post"
+    url = URL_ADS + f"/{ad_id}/post"
     response = requests.post(url)
 
     if response.status_code == 200:
