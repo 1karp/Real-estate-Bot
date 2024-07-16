@@ -67,7 +67,7 @@ async def handle_area(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_area")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.effective_message.reply_text(
-            "What is the price? AED/Year", reply_markup=reply_markup
+            "What is the price of the apartment? AED/Year", reply_markup=reply_markup
         )
         return PRICE
     else:
@@ -101,7 +101,7 @@ async def handle_building(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_building")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.effective_message.reply_text(
-            "What is the district?", reply_markup=reply_markup
+            "In what district is the apartment located?", reply_markup=reply_markup
         )
         return DISTRICT
     else:
@@ -118,7 +118,9 @@ async def handle_district(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_district")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.effective_message.reply_text(
-            "Please send me the text for your ad.", reply_markup=reply_markup
+            "Now add everything you haven't added about the apartment yet.\n"
+            "Describe everything your future tenant would like to know.",
+            reply_markup=reply_markup,
         )
         return TEXT
     else:

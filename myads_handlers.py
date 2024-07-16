@@ -14,13 +14,13 @@ async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if ad:
         photos = ad.get("photos").split(",")
         ad_text = (
-            f"{ad.get('text')}\n\n"
             f"Rooms: {ad.get('rooms')}\n"
             f"Price: {ad.get('price')} AED/year\n"
             f"Rent type: {ad.get('type')}\n"
             f"Area: {ad.get('area')} sqm\n"
             f"Building: {ad.get('building')}\n"
             f"District: {ad.get('district')}\n\n"
+            f"{ad.get('text')}\n\n"
             f"Contact: @{ad.get('username')}"
         )
 
