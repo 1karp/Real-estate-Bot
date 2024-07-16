@@ -38,7 +38,12 @@ from create_handlers import (
     save_ad,
 )
 from main_handlers import cancel, start
-from myads_handlers import get_my_ads, view_ad_callback, post_ad_callback
+from myads_handlers import (
+    get_my_ads,
+    view_ad_callback,
+    post_ad_callback,
+    edit_post_ad_callback,
+)
 from settings import BOT_TOKEN
 
 
@@ -90,6 +95,9 @@ def main() -> None:
 
     application.add_handler(CallbackQueryHandler(view_ad_callback, pattern="^view_ad_"))
     application.add_handler(CallbackQueryHandler(post_ad_callback, pattern="^post_ad_"))
+    application.add_handler(
+        CallbackQueryHandler(edit_post_ad_callback, pattern="^edit_post_ad_")
+    )
 
     application.run_polling()
 

@@ -143,7 +143,7 @@ async def save_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     user_data = json.loads(user_data_json)
     ad_id = save_ad_to_db(user_id, user_data)
-    load_ad_by_id(ad_id, user_id)
+    load_ad_by_id(ad_id)
 
     await update.message.reply_text(
         "Your ad has been saved.",

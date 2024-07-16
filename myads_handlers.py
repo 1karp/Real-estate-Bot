@@ -8,7 +8,7 @@ from telegram import (
 from telegram.ext import ContextTypes, ConversationHandler
 
 from settings import redis_client
-from database import fetch_ads_by_userid, load_ad_by_id, post_ad
+from database import fetch_ads_by_userid, load_ad_by_id, post_ad, edit_post_ad
 
 
 async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -38,11 +38,14 @@ async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
         buttons = [
             InlineKeyboardButton("Edit", callback_data=f"edit_ad_{user_id}"),
-            InlineKeyboardButton(
-                "Update Channel Post", callback_data="update_channel_post"
-            ),
         ]
-        if not ad.get("is_posted"):
+        if ad.get("is_posted"):
+            buttons.append(
+                InlineKeyboardButton(
+                    "Update Channel Post", callback_data=f"edit_post_ad_{ad.get('id')}"
+                )
+            )
+        else:
             buttons.append(
                 InlineKeyboardButton("Post", callback_data=f"post_ad_{ad.get('id')}")
             )
@@ -86,8 +89,7 @@ async def view_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     data = query.data
     if data.startswith("view_ad_"):
         ad_id = data.split("_")[2]
-        user_id = update.effective_user.id
-        load_ad_by_id(ad_id, user_id)
+        load_ad_by_id(ad_id)
         await view_ad(update, context)
 
 
@@ -104,12 +106,27 @@ async def post_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return ConversationHandler.END
 
     if post_ad(ad_id):
-        user_data["is_posted"] = True
-        redis_client.set(user_id, json.dumps(user_data))
+        load_ad_by_id(ad_id)
         await query.message.reply_text(
             "Ad posted successfully. Use /create to post a new ad."
         )
         return ConversationHandler.END
     else:
         await query.message.reply_text("Ad is already posted.")
+        return ConversationHandler.END
+
+
+async def edit_post_ad_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    ad_id = query.data.split("_")[3]
+
+    if edit_post_ad(ad_id):
+        await query.message.reply_text("Ad updated successfully.")
+        return ConversationHandler.END
+    else:
+        await query.message.reply_text("Ad is already updated.")
         return ConversationHandler.END

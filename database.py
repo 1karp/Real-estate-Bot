@@ -39,13 +39,13 @@ def save_ad_to_db(user_id, data):
         response.raise_for_status()
 
 
-def load_ad_by_id(ad_id, user_id):
+def load_ad_by_id(ad_id):
     url = URL_ADS + f"/{ad_id}"
     response = requests.get(url)
 
     if response.status_code == 200:
         ad_data = response.json()
-        redis_client.set(user_id, json.dumps(ad_data))
+        redis_client.set(ad_data.get("user_id"), json.dumps(ad_data))
     else:
         response.raise_for_status()
 
@@ -92,6 +92,16 @@ def post_ad(ad_id):
     url = URL_ADS + f"/{ad_id}/post"
     response = requests.post(url)
 
+    if response.status_code == 200:
+        return True
+    else:
+        return False
+        response.raise_for_status()
+
+
+def edit_post_ad(ad_id):
+    url = URL_ADS + f"/{ad_id}/edit-post"
+    response = requests.post(url)
     if response.status_code == 200:
         return True
     else:
