@@ -22,6 +22,7 @@ from conversation_states import (
     TEXT,
 )
 from database import save_ad_to_db, load_ad_by_id
+from validators import validate_and_save_field
 from myads_handlers import view_ad
 
 
@@ -30,6 +31,7 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = user.id
     username = user.username
     user_data = {
+        "user_id": user_id,
         "text": "",
         "photos": [],
         "username": username,
@@ -51,94 +53,104 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def handle_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
-    user_data = json.loads(redis_client.get(user_id))
-    user_data["rooms"] = update.effective_message.text
-    redis_client.set(user_id, json.dumps(user_data))
-    keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_rooms")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.effective_message.reply_text(
-        "What is the area of the apartment? (sqm)", reply_markup=reply_markup
+    success, error_message = validate_and_save_field(
+        user_id, "rooms", update.effective_message.text
     )
-    return AREA
+    if success:
+        keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_rooms")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text(
+            "What is the area of the apartment? (sqm)", reply_markup=reply_markup
+        )
+        return AREA
+    else:
+        await update.effective_message.reply_text(error_message)
+        return ROOMS
 
 
 async def handle_area(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
-    user_data = json.loads(redis_client.get(user_id))
-    try:
-        area = int(update.effective_message.text)
-        user_data["area"] = area
-        redis_client.set(user_id, json.dumps(user_data))
+    success, error_message = validate_and_save_field(
+        user_id, "area", update.effective_message.text
+    )
+    if success:
         keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_area")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.effective_message.reply_text(
             "What is the price? AED/Year", reply_markup=reply_markup
         )
         return PRICE
-    except ValueError:
-        await update.effective_message.reply_text(
-            "Invalid area. Please enter a numeric value."
-        )
+    else:
+        await update.effective_message.reply_text(error_message)
         return AREA
 
 
 async def handle_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
-    user_data = json.loads(redis_client.get(user_id))
-    try:
-        price = int(update.effective_message.text)
-        user_data["price"] = price
-        redis_client.set(user_id, json.dumps(user_data))
+    success, error_message = validate_and_save_field(
+        user_id, "price", update.effective_message.text
+    )
+    if success:
         keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_price")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.effective_message.reply_text(
             "What is the name of the building?", reply_markup=reply_markup
         )
         return BUILDING
-    except ValueError:
-        await update.effective_message.reply_text(
-            "Invalid price. Please enter a numeric value."
-        )
+    else:
+        await update.effective_message.reply_text(error_message)
         return PRICE
 
 
 async def handle_building(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
-    user_data = json.loads(redis_client.get(user_id))
-    user_data["building"] = update.effective_message.text
-    redis_client.set(user_id, json.dumps(user_data))
-    keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_building")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.effective_message.reply_text(
-        "What is the district?", reply_markup=reply_markup
+    success, error_message = validate_and_save_field(
+        user_id, "building", update.effective_message.text
     )
-    return DISTRICT
+    if success:
+        keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_building")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text(
+            "What is the district?", reply_markup=reply_markup
+        )
+        return DISTRICT
+    else:
+        await update.effective_message.reply_text(error_message)
+        return BUILDING
 
 
 async def handle_district(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
-    user_data = json.loads(redis_client.get(user_id))
-    user_data["district"] = update.effective_message.text
-    redis_client.set(user_id, json.dumps(user_data))
-    keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_district")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.effective_message.reply_text(
-        "Please send me the text for your ad.", reply_markup=reply_markup
+    success, error_message = validate_and_save_field(
+        user_id, "district", update.effective_message.text
     )
-    return TEXT
+    if success:
+        keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_district")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text(
+            "Please send me the text for your ad.", reply_markup=reply_markup
+        )
+        return TEXT
+    else:
+        await update.effective_message.reply_text(error_message)
+        return DISTRICT
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
-    user_data = json.loads(redis_client.get(user_id))
-    user_data["text"] = update.effective_message.text
-    redis_client.set(user_id, json.dumps(user_data))
-    keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_text")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.effective_message.reply_text(
-        "Please send me the photos.", reply_markup=reply_markup
+    success, error_message = validate_and_save_field(
+        user_id, "text", update.effective_message.text
     )
-    return PHOTOS
+    if success:
+        keyboard = [[InlineKeyboardButton("Back", callback_data="back_to_text")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.effective_message.reply_text(
+            "Please send me the photos.", reply_markup=reply_markup
+        )
+        return PHOTOS
+    else:
+        await update.effective_message.reply_text(error_message)
+        return TEXT
 
 
 async def back_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

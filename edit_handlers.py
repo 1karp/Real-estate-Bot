@@ -1,12 +1,13 @@
-import json
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
-from settings import redis_client
 from database import update_ad
 from myads_handlers import view_ad
-from conversation_states import CHOOSING, TYPING_REPLY, EDIT_FIELDS
+from conversation_states import CHOOSING, TYPING_REPLY
+from validators import (
+    validate_and_save_field,
+    EDIT_FIELDS,
+)
 
 
 async def edit_ad_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -17,7 +18,7 @@ async def edit_ad_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         [InlineKeyboardButton(field.capitalize(), callback_data=f"edit_{field}")]
         for field in EDIT_FIELDS
     ]
-    buttons.append([InlineKeyboardButton("Done", callback_data="done")])
+    buttons.append([InlineKeyboardButton("Save", callback_data="save")])
 
     reply_markup = InlineKeyboardMarkup(buttons)
     await query.edit_message_text(
@@ -42,22 +43,24 @@ async def save_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     field = context.user_data["edit_field"]
     new_value = update.message.text
 
-    ad = json.loads(redis_client.get(user_id))
-    ad[field] = new_value
-    redis_client.set(user_id, json.dumps(ad))
+    success, error_message = validate_and_save_field(user_id, field, new_value)
 
-    buttons = [
-        [InlineKeyboardButton(f.capitalize(), callback_data=f"edit_{f}")]
-        for f in EDIT_FIELDS
-    ]
-    buttons.append([InlineKeyboardButton("Done", callback_data="done")])
+    if success:
+        buttons = [
+            [InlineKeyboardButton(f.capitalize(), callback_data=f"edit_{f}")]
+            for f in EDIT_FIELDS
+        ]
+        buttons.append([InlineKeyboardButton("Save and exit", callback_data="save")])
 
-    reply_markup = InlineKeyboardMarkup(buttons)
-    await update.message.reply_text(
-        f"{field.capitalize()} updated. What else would you like to edit?",
-        reply_markup=reply_markup,
-    )
-    return CHOOSING
+        reply_markup = InlineKeyboardMarkup(buttons)
+        await update.message.reply_text(
+            f"{field.capitalize()} updated. What else would you like to edit?",
+            reply_markup=reply_markup,
+        )
+        return CHOOSING
+    else:
+        await update.message.reply_text(error_message)
+        return TYPING_REPLY
 
 
 async def finish_editing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

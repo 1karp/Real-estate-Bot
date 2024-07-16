@@ -19,7 +19,7 @@ def save_ad_to_db(user_id, data):
     photos_str = ",".join(data["photos"])
 
     ad_data = {
-        "user_id": user_id,
+        "user_id": data["user_id"],
         "username": data["username"],
         "photos": photos_str,
         "rooms": data["rooms"],

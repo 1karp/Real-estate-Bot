@@ -79,7 +79,7 @@ def main() -> None:
         states={
             CHOOSING: [
                 CallbackQueryHandler(edit_field, pattern=r"^edit_"),
-                CallbackQueryHandler(finish_editing, pattern=r"^done$"),
+                CallbackQueryHandler(finish_editing, pattern=r"^save$"),
             ],
             TYPING_REPLY: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_edit)],
         },
