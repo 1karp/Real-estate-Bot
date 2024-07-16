@@ -1,8 +1,8 @@
-import requests
 import json
 
-from settings import redis_client
+import requests
 
+from settings import redis_client
 
 URL_ADS = "http://localhost:8000/ads"
 URL_USERS = "http://localhost:8000/users"

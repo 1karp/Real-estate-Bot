@@ -1,13 +1,10 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from conversation_states import CHOOSING, TYPING_REPLY
 from database import update_ad
 from myads_handlers import view_ad
-from conversation_states import CHOOSING, TYPING_REPLY
-from validators import (
-    validate_and_save_field,
-    EDIT_FIELDS,
-)
+from validators import EDIT_FIELDS, validate_and_save_field
 
 
 async def edit_ad_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

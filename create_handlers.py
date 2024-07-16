@@ -1,29 +1,19 @@
 import json
+
 from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
     Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
 )
-from telegram.ext import (
-    ContextTypes,
-    ConversationHandler,
-)
+from telegram.ext import ContextTypes, ConversationHandler
 
-from settings import redis_client
-from conversation_states import (
-    AREA,
-    DISTRICT,
-    BUILDING,
-    PHOTOS,
-    PRICE,
-    ROOMS,
-    TEXT,
-)
-from database import save_ad_to_db, load_ad_by_id
-from validators import validate_and_save_field
+from conversation_states import AREA, BUILDING, DISTRICT, PHOTOS, PRICE, ROOMS, TEXT
+from database import load_ad_by_id, save_ad_to_db
 from myads_handlers import view_ad
+from settings import redis_client
+from validators import validate_and_save_field
 
 
 async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

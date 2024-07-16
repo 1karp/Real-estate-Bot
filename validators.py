@@ -1,5 +1,5 @@
-import re
 import json
+import re
 
 from settings import redis_client
 

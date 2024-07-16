@@ -1,8 +1,8 @@
-import redis
-import os
 import logging
-from dotenv import load_dotenv
+import os
 
+import redis
+from dotenv import load_dotenv
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
