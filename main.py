@@ -15,7 +15,6 @@ from conversation_states import (
     PRICE,
     ROOMS,
     TEXT,
-    TYPE,
     CHOOSING,
     TYPING_REPLY,
 )
@@ -34,8 +33,8 @@ from create_handlers import (
     handle_price,
     handle_rooms,
     handle_text,
-    handle_type,
     save_ad,
+    back_button,
 )
 from main_handlers import cancel, start
 from myads_handlers import (
@@ -54,7 +53,8 @@ def main() -> None:
     create_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("create", create)],
         states={
-            TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_type)],
+            ROOMS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_rooms)],
+            AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_area)],
             PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_price)],
             BUILDING: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_building)
@@ -62,15 +62,16 @@ def main() -> None:
             DISTRICT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_district)
             ],
-            ROOMS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_rooms)],
-            AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_area)],
             TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text)],
             PHOTOS: [
                 MessageHandler(filters.PHOTO, handle_photo),
                 CommandHandler("save_ad", save_ad),
             ],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CallbackQueryHandler(back_button, pattern="^back_to_"),
+        ],
     )
 
     edit_conv_handler = ConversationHandler(
