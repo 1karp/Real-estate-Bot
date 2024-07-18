@@ -214,7 +214,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     user_data = json.loads(redis_client.get(user_id))
     photo_file_id = update.message.photo[-1].file_id
 
-    photos_count = len(user_data["photos"])
+    photos = user_data.get("photos", "")
+    photos_count = photos.count(",") + 1 if photos else 0
     max_photos = 10
     remaining = max_photos - photos_count
 
@@ -224,18 +225,20 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             "Your ad is looking great! To review it before posting, just use the /save_ad command."
         )
     else:
-        user_data["photos"].append(photo_file_id)
+        user_data["photos"] = (
+            f"{photos},{photo_file_id}" if photos else f"{photo_file_id}"
+        )
         redis_client.set(user_id, json.dumps(user_data))
 
         if remaining > 1:
             await update.effective_message.reply_text(
-                f"Photo received! 📸 You can add {remaining} more photos.\n"
+                f"Photo received! 📸 You can add {remaining - 1} more photos.\n"
                 f"Send another photo or use /save_ad when you're ready to preview your ad."
             )
         else:
             await update.effective_message.reply_text(
-                "Photo received! 📸 You can add 1 more photo.\n"
-                "Send another photo or use /save_ad when you're ready to preview your ad."
+                "Photo received! 📸 You've added all 10 photos.\n"
+                "Use /save_ad when you're ready to preview your ad."
             )
 
     return PHOTOS
@@ -243,16 +246,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def save_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
-    user_data_json = redis_client.get(user_id)
 
-    if user_data_json is None:
-        await update.effective_message.reply_text(
-            "Oops! We couldn't find your ad data. Let's start over."
-        )
-        return ConversationHandler.END
-
-    user_data = json.loads(user_data_json)
-    ad_id = save_ad_to_db(user_id, user_data)
+    ad_id = save_ad_to_db(user_id)
     load_ad_by_id(ad_id)
 
     await update.effective_message.reply_text(

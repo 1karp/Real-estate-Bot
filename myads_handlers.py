@@ -3,7 +3,12 @@ import json
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from database import edit_post_ad, fetch_ads_by_userid, load_ad_by_id, post_ad
+from database import (
+    edit_post_ad,
+    get_ads_by_userid,
+    load_ad_by_id,
+    post_ad,
+)
 from settings import redis_client
 
 
@@ -62,10 +67,10 @@ async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def get_my_ads(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
-    ads = fetch_ads_by_userid(user_id)
+    ads = get_ads_by_userid(user_id)
     if ads:
         buttons = [
-            [InlineKeyboardButton(f"Ad #{ad[0]}", callback_data=f"view_ad_{ad[0]}")]
+            [InlineKeyboardButton(f"Ad #{ad}", callback_data=f"view_ad_{ad}")]
             for ad in ads
         ]
         reply_markup = InlineKeyboardMarkup(buttons)

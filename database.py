@@ -8,38 +8,24 @@ URL_ADS = "http://localhost:8000/ads"
 URL_USERS = "http://localhost:8000/users"
 
 
-def save_user_to_db(user_id, username):
+def save_user_to_db(user_id, username) -> None:
     url = URL_USERS
-    data = {"userid": user_id, "username": username, "ads": ""}
+    data = {"userid": user_id, "username": username}
     requests.post(url, json=data)
 
 
-def save_ad_to_db(user_id, data):
+def save_ad_to_db(user_id) -> str:
     url = URL_ADS
-    photos_str = ",".join(data["photos"])
-
-    ad_data = {
-        "user_id": data["user_id"],
-        "username": data["username"],
-        "photos": photos_str,
-        "rooms": data["rooms"],
-        "price": data["price"],
-        "type": data["type"],
-        "area": data["area"],
-        "building": data["building"],
-        "district": data["district"],
-        "text": data["text"],
-    }
-
+    ad_data = json.loads(redis_client.get(user_id))
     response = requests.post(url, json=ad_data)
+
     if response.status_code == 201:
-        ad_id = response.json().get("id")
-        return ad_id
+        return response.json().get("id")
     else:
         response.raise_for_status()
 
 
-def load_ad_by_id(ad_id):
+def load_ad_by_id(ad_id) -> None:
     url = URL_ADS + f"/{ad_id}"
     response = requests.get(url)
 
@@ -50,7 +36,7 @@ def load_ad_by_id(ad_id):
         response.raise_for_status()
 
 
-def update_ad(user_id):
+def update_ad(user_id) -> bool:
     ad_data = json.loads(redis_client.get(user_id))
     url = URL_ADS + f"/{ad_data['id']}"
 
@@ -61,49 +47,32 @@ def update_ad(user_id):
         response.raise_for_status()
 
 
-def fetch_ads_by_userid(userid):
-    url = URL_ADS + f"?userid={userid}"
+def get_ads_by_userid(userid) -> list[str]:
+    url = URL_USERS + f"/{userid}/ads"
     response = requests.get(url)
 
     if response.status_code == 200:
-        ads_data = response.json()
-        ads = []
-        for ad in ads_data:
-            photos = ad["photos"].split(",")
-            ads.append(
-                (
-                    ad["id"],
-                    photos,
-                    ad["rooms"],
-                    ad["price"],
-                    ad["type"],
-                    ad["area"],
-                    ad["building"],
-                    ad["district"],
-                    ad["text"],
-                )
-            )
-        return ads if ads else None
+        ads = response.json()
+        ads = ads[0].split(",")
+        return ads
     else:
         response.raise_for_status()
 
 
-def post_ad(ad_id):
+def post_ad(ad_id) -> bool:
     url = URL_ADS + f"/{ad_id}/post"
     response = requests.post(url)
 
     if response.status_code == 200:
         return True
     else:
-        return False
         response.raise_for_status()
 
 
-def edit_post_ad(ad_id):
+def edit_post_ad(ad_id) -> bool:
     url = URL_ADS + f"/{ad_id}/edit-post"
     response = requests.post(url)
     if response.status_code == 200:
         return True
     else:
-        return False
         response.raise_for_status()
