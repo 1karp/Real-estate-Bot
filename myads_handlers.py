@@ -33,29 +33,30 @@ async def view_ad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 chat_id=update.effective_chat.id, media=media
             )
         buttons = [
-            InlineKeyboardButton("Edit", callback_data=f"edit_ad_{user_id}"),
+            InlineKeyboardButton("✏️ Edit", callback_data=f"edit_ad_{user_id}"),
         ]
         if ad.get("is_posted"):
             buttons.append(
                 InlineKeyboardButton(
-                    "Update Channel Post", callback_data=f"edit_post_ad_{ad.get('id')}"
+                    "🔄 Update Channel Post",
+                    callback_data=f"edit_post_ad_{ad.get('id')}",
                 )
             )
         else:
             buttons.append(
-                InlineKeyboardButton("Post", callback_data=f"post_ad_{ad.get('id')}")
+                InlineKeyboardButton("📢 Post", callback_data=f"post_ad_{ad.get('id')}")
             )
         keyboard = InlineKeyboardMarkup([buttons])
 
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="Preview your ad above. Click Edit to make changes.",
+            text="Here's a preview of your ad. 👆 Click 'Edit' if you'd like to make any changes.",
             reply_markup=keyboard,
         )
     else:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="No ad found. To create a new ad, use /create.",
+            text="Oops! We couldn't find any ads for you. 😕 To create a new ad, just use the /create command.",
         )
 
 
@@ -64,17 +65,17 @@ async def get_my_ads(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     ads = fetch_ads_by_userid(user_id)
     if ads:
         buttons = [
-            [InlineKeyboardButton(f"Ad ID: {ad[0]}", callback_data=f"view_ad_{ad[0]}")]
+            [InlineKeyboardButton(f"Ad #{ad[0]}", callback_data=f"view_ad_{ad[0]}")]
             for ad in ads
         ]
         reply_markup = InlineKeyboardMarkup(buttons)
         await update.message.reply_text(
-            "Here are your ads. Click on an ID to view the ad details:",
+            "Here's a list of your ads. 📋 Tap on an ad number to view its details:",
             reply_markup=reply_markup,
         )
     else:
         await update.message.reply_text(
-            "No ads found for you. To create a new ad, use /create."
+            "Looks like you haven't created any ads yet. 🤔 Ready to make one? Just use the /create command!"
         )
 
 
@@ -98,17 +99,18 @@ async def post_ad_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     ad_id = query.data.split("_")[2]
 
     if user_data["is_posted"]:
-        await query.message.reply_text("This ad has already been posted.")
+        await query.message.reply_text("This ad has already been posted. 😊")
         return ConversationHandler.END
 
     if post_ad(ad_id):
         load_ad_by_id(ad_id)
         await query.message.reply_text(
-            "Ad posted successfully. Use /create to post a new ad."
+            "Great news! Your ad has been posted successfully. 🎉\n"
+            "Ready to create another? Just use the /create command."
         )
         return ConversationHandler.END
     else:
-        await query.message.reply_text("Ad is already posted.")
+        await query.message.reply_text("It looks like this ad is already posted. 🤔")
         return ConversationHandler.END
 
 
@@ -121,8 +123,8 @@ async def edit_post_ad_callback(
     ad_id = query.data.split("_")[3]
 
     if edit_post_ad(ad_id):
-        await query.message.reply_text("Ad updated successfully.")
+        await query.message.reply_text("Your ad has been updated successfully! 🎉")
         return ConversationHandler.END
     else:
-        await query.message.reply_text("Ad is already updated.")
+        await query.message.reply_text("It seems your ad is already up to date. 👍")
         return ConversationHandler.END

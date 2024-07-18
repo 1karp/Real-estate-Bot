@@ -19,7 +19,8 @@ async def edit_ad_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     reply_markup = InlineKeyboardMarkup(buttons)
     await query.edit_message_text(
-        "What would you like to edit?", reply_markup=reply_markup
+        "Which part of your ad would you like to update? Choose an option below:",
+        reply_markup=reply_markup,
     )
     return CHOOSING
 
@@ -31,7 +32,7 @@ async def edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     field = query.data.split("_")[1]
 
     context.user_data["edit_field"] = field
-    await query.edit_message_text(f"Please enter the new value for {field}:")
+    await query.edit_message_text(f"Great! Please enter the new {field} for your ad:")
     return TYPING_REPLY
 
 
@@ -51,12 +52,12 @@ async def save_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
         reply_markup = InlineKeyboardMarkup(buttons)
         await update.message.reply_text(
-            f"{field.capitalize()} updated. What else would you like to edit?",
+            f"Perfect! Your ad's {field.lower()} has been updated. Would you like to edit anything else?",
             reply_markup=reply_markup,
         )
         return CHOOSING
     else:
-        await update.message.reply_text(error_message)
+        await update.message.reply_text(f"Oops! {error_message} Please try again.")
         return TYPING_REPLY
 
 
@@ -68,7 +69,9 @@ async def finish_editing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     update_ad(user_id)
 
-    await query.edit_message_text("Editing completed. Here's your updated ad:")
+    await query.edit_message_text(
+        "Great job! You've successfully updated your ad. Here's how it looks now:"
+    )
     await view_ad(update, context)
 
     context.user_data.clear()
@@ -76,5 +79,7 @@ async def finish_editing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Editing cancelled.")
+    await update.message.reply_text(
+        "No problem! Your ad editing has been cancelled. Your ad remains unchanged."
+    )
     return ConversationHandler.END
